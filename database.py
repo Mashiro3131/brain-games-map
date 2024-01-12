@@ -6,20 +6,28 @@ import random
 import string
 import colorama
 from colorama import Fore
-colorama.init(autoreset=True)
 import datetime
 import hashlib
 
+colorama.init(autoreset=True)
 
 
 class Database:
-    def __init__(self, host, port, user, password, database):
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(Database, cls).__new__(cls)
+            cls._instance.init(*args, **kwargs)
+        return cls._instance
+
+    def init(self, host, port, user, password, database):
         self.config = {
-            '127.0.0.1': host,
-            '3306': port,
-            'root': user,
-            'root': password,
-            'brain_games_db': database,
+            'host': host,
+            'port': port,
+            'user': user,
+            'password': password,
+            'database': database,
             'buffered': True,
             'autocommit': True
         }
@@ -34,6 +42,7 @@ class Database:
             cursor.close()
             connection.close()
 
+    @staticmethod
     def with_connection(func):
         @functools.wraps(func)
         def wrapper(self, *args, **kwargs):
@@ -42,13 +51,85 @@ class Database:
         return wrapper
 
 
-    """ BRAIN GAMES """
+    @with_connection
+    def check_user_role(self, cursor, user_id, required_role):
+        query = "SELECT role_id FROM users WHERE id = %s"
+        cursor.execute(query, (user_id,))
+        result = cursor.fetchone()
+        return result and result[0] == required_role
+
+    @with_connection
+    def create_new_result(self, cursor, user_id, exercise, date_hour, duration, nbtrials, nbok):
+        if not self.check_user_role(cursor, user_id, 2):  # Assuming role_id 2 is for teachers
+            print(Fore.RED + "Unauthorized: Only teachers can create results.")
+            return False
+
+        insert_query = """
+            INSERT INTO results (user_id, exercise, date_hour, duration, nbtrials, nbok) 
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(insert_query, (user_id, exercise, date_hour, duration, nbtrials, nbok))
+        print(Fore.GREEN + "New result added successfully.")
+
+    @with_connection
+    def update_result(self, cursor, user_id, result_id, new_duration=None, new_nbtrials=None, new_nbok=None):
+        if not self.check_user_role(cursor, user_id, 2):
+            print(Fore.RED + "Unauthorized: Only teachers can update results.")
+            return False
+
+        update_query = "UPDATE results SET "
+        parameters = []
+        if new_duration:
+            update_query += "duration = %s, "
+            parameters.append(new_duration)
+        if new_nbtrials:
+            update_query += "nbtrials = %s, "
+            parameters.append(new_nbtrials)
+        if new_nbok:
+            update_query += "nbok = %s, "
+            parameters.append(new_nbok)
+        
+        update_query = update_query.rstrip(', ')
+        update_query += " WHERE id = %s"
+        parameters.append(result_id)
+        
+        cursor.execute(update_query, tuple(parameters))
+        print(Fore.GREEN + "Result updated successfully.")
+
+    @with_connection
+    def delete_result(self, cursor, user_id, result_id):
+        if not self.check_user_role(cursor, user_id, 2):
+            print(Fore.RED + "Unauthorized: Only teachers can delete results.")
+            return False
+
+        delete_query = "DELETE FROM results WHERE id = %s"
+        cursor.execute(delete_query, (result_id,))
+        print(Fore.GREEN + "Result deleted successfully.")
+
+    @with_connection
+    def get_results_for_user(self, cursor, user_id):
+        query = "SELECT * FROM results WHERE user_id = %s"
+        cursor.execute(query, (user_id,))
+        return cursor.fetchall()
+
+    @with_connection
+    def register_user_with_role(self, cursor, pseudo, password, role_id):
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+        insert_query = """
+            INSERT INTO users (pseudo, password, role_id) VALUES (%s, %s, %s)
+        """
+        cursor.execute(insert_query, (pseudo, hashed_password, role_id))
+        print(Fore.GREEN + f"User {pseudo} registered successfully with role {role_id}.")
+
+    @with_connection
+    def assign_role_to_user(self, cursor, user_id, new_role_id):
+        update_query = "UPDATE users SET role_id = %s WHERE id = %s"
+        cursor.execute(update_query, (new_role_id, user_id))
+        print(Fore.GREEN + f"User with ID {user_id} assigned role {new_role_id}.")
 
 
 
-
-
-    """ LOGIN"""
+    """ LOGIN """
     
     @with_connection
     def is_user_exist(self, cursor, pseudo):
@@ -73,8 +154,7 @@ class Database:
                 # Verify the password
                 if bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8')):
                     print(Fore.GREEN + "Login successful.")
-                    # Handle login state here (e.g., creating a session token)
-                    # Return user_id or any other required user information
+                    # Return user data
                     return user_id
                 else:
                     # Incorrect password
@@ -90,11 +170,11 @@ class Database:
             return None
 
 
-    
+    @with_connection
     def register_user(self, cursor, pseudo, password, role_id):
         try:
             # Check if user already exists (Efficient existence check)
-            if self.is_user_exist(cursor, pseudo):
+            if self.is_user_exist(pseudo):
                 print(Fore.RED + "Username already taken.")
                 return False
 
@@ -121,7 +201,7 @@ class Database:
         try:
             # Generate a unique guest username with a hash-like style
             random_str = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
-            guest_username = f"guest{hashlib.md5(random_str.encode()).hexdigest()[:10]}"
+            guest_username = f"guest_{hashlib.md5(random_str.encode()).hexdigest()[:10]}"
 
             # Generate a random password
             guest_password = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
@@ -161,3 +241,6 @@ class Database:
             return False
 
 
+if __name__ == "__main__":
+    
+    Database(host='127.0.0.1', port='3306', user='root', password='root', database='brain_games_db')
