@@ -50,6 +50,66 @@ class Database:
                 return func(self, cursor, *args, **kwargs)
         return wrapper
 
+    @with_connection
+    def fetch_game_statistics(self, cursor, pseudo=None, exercise=None, start_date=None, end_date=None, page=1, page_size=20):
+        try:
+            # Building the WHERE clause
+            where_clauses = []
+            params = []
+            if pseudo:
+                where_clauses.append("users.pseudo = %s")
+                params.append(pseudo)
+            if exercise:
+                where_clauses.append("results.exercise = %s")
+                params.append(exercise)
+            if start_date:
+                where_clauses.append("results.date_hour >= %s")
+                params.append(start_date)
+            if end_date:
+                where_clauses.append("results.date_hour <= %s")
+                params.append(end_date)
+
+            where_statement = " AND ".join(where_clauses) if where_clauses else "1=1"
+
+            # Pagination setup
+            offset = (page - 1) * page_size
+            limit_statement = "LIMIT %s OFFSET %s"
+            params.extend([page_size, offset])
+
+            # Construct and execute the main query
+            main_query = f"""
+                SELECT users.pseudo, results.exercise, results.date_hour, results.duration, results.nbtrials, results.nbok
+                FROM results
+                JOIN users ON users.id = results.user_id
+                WHERE {where_statement}
+                ORDER BY results.date_hour DESC
+                {limit_statement}
+            """
+            cursor.execute(main_query, params)
+            results = cursor.fetchall()
+
+            # Construct and execute the count query
+            count_query = f"""
+                SELECT COUNT(*)
+                FROM results
+                JOIN users ON users.id = results.user_id
+                WHERE {where_statement}
+            """
+            cursor.execute(count_query, params[:-2])  # Exclude pagination parameters
+            total = cursor.fetchone()[0]
+
+            return results, total
+
+        except mysql.connector.Error as error:
+            print(Fore.RED + f"Error fetching results: {error}")
+            return [], 0
+      
+    # This will be used in the home menu page to display the statistics of the user    
+    @with_connection 
+    def get_statistics_for_user(self, pseudo=None, exercise=None, start_date=None, end_date=None, page=1, page_size=20):
+        return self.fetch_game_statistics(pseudo=pseudo, exercise=exercise, start_date=start_date, end_date=end_date, page=page, page_size=page_size)
+
+    """ USERS """
 
     @with_connection
     def check_user_role(self, cursor, user_id, required_role):
@@ -57,6 +117,9 @@ class Database:
         cursor.execute(query, (user_id,))
         result = cursor.fetchone()
         return result and result[0] == required_role
+
+
+    """ CRUD for teachers """
 
     @with_connection
     def create_new_result(self, cursor, user_id, exercise, date_hour, duration, nbtrials, nbok):
@@ -112,6 +175,8 @@ class Database:
         cursor.execute(query, (user_id,))
         return cursor.fetchall()
 
+
+    
     @with_connection
     def register_user_with_role(self, cursor, pseudo, password, role_id):
         hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
@@ -224,13 +289,13 @@ class Database:
     def logout_user(self, cursor, username):
         try:
             # Check if the user is a guest
-            if username.startswith("guest"):
+            if username.startswith("guest_"):
                 # Delete guest account
                 delete_query = "DELETE FROM users WHERE pseudo = %s"
                 cursor.execute(delete_query, (username,))
                 print(Fore.GREEN + f"Guest account {username} deleted successfully.")
             else:
-                # Handle logout for regular users (e.g., invalidate session token)
+                # Handle logout for regular users (for ex: invalidate session token)
                 print(Fore.GREEN + f"User {username} logged out successfully.")
 
             # Additional logout procedures can be added here if necessary
