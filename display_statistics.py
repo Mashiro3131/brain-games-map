@@ -21,7 +21,8 @@ class Statistics(CTkFrame):
         self.rows_per_page = 20
         self.loaded_data = False  # To track if data has been loaded
         self.parent = parent
-        self.parent.geometry("900x650")
+        # self.parent.geometry("1300x650")
+        # self.parent.resizable(False, False)
         # self.parent.title("Statistics")
         self.last_filters = {"pseudo": "", "exercise": "", "start_date": "", "end_date": ""}
 
@@ -31,56 +32,54 @@ class Statistics(CTkFrame):
     
     def setup_widgets(self):
         
-        """ Statistics Label """
-        
-        # Title Label
-        self.title_label = ctk.CTkLabel(self, text="Statistics", font=ctk.CTkFont(size=15, weight="bold"))
+        """ Main Content Frame """
+        self.main_content_frame = ctk.CTkFrame(self)
+        self.main_content_frame.pack(side='left', expand=True, fill='both', padx=10, pady=10)
+
+        """ Statistics Label inside Main Content Frame """
+        self.title_label = ctk.CTkLabel(self.main_content_frame, text="Statistics", font=ctk.CTkFont(size=15, weight="bold"))
         self.title_label.pack(pady=20)
 
-        # Filter frame
-        self.filter_frame = ctk.CTkFrame(self)
-        self.filter_frame.pack(pady=10)
+        """ Filter Frame inside Main Content Frame """
+        self.filter_frame = ctk.CTkFrame(self.main_content_frame)
+        self.filter_frame.pack(pady=10, fill='x')
 
-        # Pseudo filter
         self.pseudo_label = ctk.CTkLabel(self.filter_frame, text="Pseudo:")
         self.pseudo_label.grid(row=0, column=0, padx=15, pady=8)
         self.pseudo_entry = ctk.CTkEntry(self.filter_frame, placeholder_text="Username")
         self.pseudo_entry.grid(row=0, column=1, padx=5, pady=8)
 
-        # Exercise filter
         self.exercise_label = ctk.CTkLabel(self.filter_frame, text="Exercise:")
-        self.exercise_label.grid(row=0, column=2, padx=5, pady=8)
+        self.exercise_label.grid(row=0, column=2, padx=15, pady=8)
         self.exercise_entry = ctk.CTkEntry(self.filter_frame, placeholder_text="Exercise Name")
         self.exercise_entry.grid(row=0, column=3, padx=5, pady=8)
 
-        # Start date filter
         self.start_date_label = ctk.CTkLabel(self.filter_frame, text="Start Date:")
-        self.start_date_label.grid(row=1, column=0, padx=5, pady=8)
+        self.start_date_label.grid(row=1, column=0, padx=15, pady=8)
         self.start_date_entry = ctk.CTkEntry(self.filter_frame, placeholder_text="YYYY-MM-DD")
         self.start_date_entry.grid(row=1, column=1, padx=5, pady=8)
-        
-        # End date filter
+
         self.end_date_label = ctk.CTkLabel(self.filter_frame, text="End Date:")
-        self.end_date_label.grid(row=1, column=2, padx=5, pady=8)
+        self.end_date_label.grid(row=1, column=2, padx=15, pady=8)
         self.end_date_entry = ctk.CTkEntry(self.filter_frame, placeholder_text="YYYY-MM-DD")
         self.end_date_entry.grid(row=1, column=3, padx=5, pady=8)
-        
-        # Filter button
+
         self.filter_button = ctk.CTkButton(self.filter_frame, text="Search", command=self.view_results)
-        self.filter_button.grid(row=0, column=4, rowspan=2, padx=5, pady=8)    
+        self.filter_button.grid(row=0, column=4, rowspan=2, padx=15, pady=8)
+
 
         """ Treeview Frame """
         
-        # Treeview frame
-        self.treeview_frame = ctk.CTkFrame(self, corner_radius=15)
-        self.treeview_frame.pack(expand=True, fill='both', padx=15, pady=15)
+        self.treeview_frame = ctk.CTkFrame(self.main_content_frame, corner_radius=15)
+        self.treeview_frame.pack(expand=True, fill='both', pady=15)
+
 
         # Treeview
         self.tree = ttk.Treeview(self.treeview_frame, columns=("Pseudo", "Date Time", "Time", "Exercise", "NB OK", "NB Trials", "% Success"), show="headings", height=10)
         self.tree.column("#0", width=0, stretch=ctk.NO)
 
         # Configuring the columns and headings
-        for col in self.tree["columns"]:
+        for col in ("Pseudo", "Date Time", "Time", "Exercise", "NB OK", "NB Trials", "% Success"):
             self.tree.column(col, width=150, anchor="center")
             self.tree.heading(col, text=col, anchor="center")
 
@@ -98,8 +97,8 @@ class Statistics(CTkFrame):
         """ Total Statistics """
         
         # Total Section
-        self.total_stats_frame = ctk.CTkFrame(self)
-        self.total_stats_frame.pack(padx=20, pady=20)
+        self.total_stats_frame = ctk.CTkFrame(self.main_content_frame)
+        self.total_stats_frame.pack(pady=20, fill='x')
         
         # Total Statistics
         self.total_stats_title_label = CTkLabel(self.total_stats_frame, text="Total Statistics", font=CTkFont(size=13, weight="bold"))
@@ -143,22 +142,22 @@ class Statistics(CTkFrame):
         
 
         # Pagination frame and buttons
-        self.pagination_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.pagination_frame.pack(pady=10)
+        self.pagination_frame = ctk.CTkFrame(self.main_content_frame, fg_color="transparent")
+        self.pagination_frame.pack(pady=10, fill='x')
 
         self.prev_page_button = ctk.CTkButton(self.pagination_frame, text="Previous Page", command=self.previous_page)
-        self.prev_page_button.pack(side="left", padx=(10, 0), pady=(2, 0))
+        self.prev_page_button.pack(side="left", padx=10)
 
         self.next_page_button = ctk.CTkButton(self.pagination_frame, text="Next Page", command=self.next_page)
-        self.next_page_button.pack(side="left", padx=(10, 0), pady=(2, 0))
+        self.next_page_button.pack(side="left", padx=10)
 
 
 
         """ CRUD Sidebar Frame """
 
-        crud_sidebar_frame = ctk.CTkFrame(self, fg_color="#2A8C55",  width=176, height=650, corner_radius=0)
-        crud_sidebar_frame.pack_propagate(0)
-        crud_sidebar_frame.pack(side="right", anchor="w", fill="y")
+        self.crud_sidebar_frame = ctk.CTkFrame(self, fg_color="#2A8C55", width=176, corner_radius=0)
+        self.crud_sidebar_frame.pack_propagate(0)
+        self.crud_sidebar_frame.pack(side="right", fill="y")
         
         
         # CRUD Buttons 
@@ -173,21 +172,20 @@ class Statistics(CTkFrame):
         De créer un résultat à partir de rien 
         """
         
-        create_button = ctk.CTkButton(crud_sidebar_frame, text="Add", command=self.add_results)
+        # CRUD Buttons
+        create_button = ctk.CTkButton(self.crud_sidebar_frame, text="Add", command=self.add_results)
         create_button.pack(side="top", padx=10, pady=10)
-        
-        # UPDATE Button
-        update_button = ctk.CTkButton(crud_sidebar_frame, text="Modify", command=self.modify_results)
+
+        update_button = ctk.CTkButton(self.crud_sidebar_frame, text="Modify", command=self.modify_results)
         update_button.pack(side="top", padx=10, pady=10)
-        
-        # DELETE Button
-        delete_button = ctk.CTkButton(crud_sidebar_frame, text="Delete", command=self.delete_results)
+
+        delete_button = ctk.CTkButton(self.crud_sidebar_frame, text="Delete", command=self.delete_results)
         delete_button.pack(side="top", padx=10, pady=10)
         
         
 
 
-
+        self.crud_sidebar_frame.lift()
         # Displays the results instantly
         self.view_results()
    
@@ -347,10 +345,10 @@ class Statistics(CTkFrame):
 
         current_values = self.tree.item(selected_item, 'values')
 
-        # Open a new window for updating
-        self.update_window = ctk.CTkToplevel()  # Using CustomTkinter
+        # Opens a window to update the selected result
+        self.update_window = ctk.CTkToplevel()
         self.update_window.title("Modify a result")
-        self.update_window.geometry("400x200+700+350")
+        self.update_window.geometry("500x200")
         self.update_window.grab_set()  # Focus on this window
 
         # Input for Duration
@@ -390,7 +388,7 @@ class Statistics(CTkFrame):
         nbtrials = current_values[5]  # pour nbtrials
 
         # Update the database #TODO: check this
-        database.update_game_results(pseudo, exercise, date_hour, duration, nbok, nbtrials, new_duration, new_nbok,
+        self.db.update_game_results(pseudo, exercise, date_hour, duration, nbok, nbtrials, new_duration, new_nbok,
                                      new_nbtrials)
 
         # Update the treeview
@@ -428,7 +426,7 @@ class Statistics(CTkFrame):
         self.tree.delete(*self.tree.get_children())
 
         # Fetch updated data from the database
-        results, _ = database.fetch_game_statistics()  # Adapt this to your actual database call
+        results, _ = self.db.fetch_game_statistics()  # Adapt this to your actual database call
 
         # Populate the treeview with the new data
         for result in results:
@@ -473,13 +471,13 @@ class Statistics(CTkFrame):
     def add_results(self):
         # Create a new window for adding a result
         self.add_window = ctk.CTkToplevel()
-        self.add_window.title("Ajouter un résultat")
-        self.add_window.geometry("400x250+700+350")
+        self.add_window.title("Add a result")
+        self.add_window.geometry("500x350")
         self.add_window.grab_set()  # Focus on this window
 
         # Input for "pseudo"
         pseudo_label = ctk.CTkLabel(self.add_window, text="Pseudo:")
-        pseudo_label.pack()
+        pseudo_label.pack(pady=(0, 5))
         self.pseudo_entry = ctk.CTkEntry(self.add_window)
         self.pseudo_entry.pack()
 
@@ -509,36 +507,79 @@ class Statistics(CTkFrame):
 
         # Button to add the new result
         add_result_button = ctk.CTkButton(self.add_window, text="Ajouter résultat", command=self.save_results)
-        add_result_button.pack()    
+        add_result_button.pack(padx=10, pady=10)    
     
     def save_results(self):
+        # Retrieve values from the entry fields
         pseudo = self.pseudo_entry.get()
         exercise = self.exercise_entry.get()
-        time = self.time_entry.get()
+        duration = self.time_entry.get()  # Assuming format HH:MM:SS
         nbok = self.nbok_entry.get()
         nbtrials = self.nbtrial_entry.get()
 
-        # Verify if the exercise exists
-        if not self.check_exercise_exists(exercise):
-            existing_exercises = self.db.get_exercices()
-            messagebox.showwarning("Error",
-                                   f"This exercise does not exist. Available exercises in the database are: {', '.join(existing_exercises)}")
+        # Basic validation
+        if not pseudo or not exercise or not duration or not nbok or not nbtrials:
+            messagebox.showwarning("Error", "All fields are required.")
             return
 
-        # Verify the time format
-        if not self.time_format(time):
+        # Validate if the exercise exists
+        if not self.check_exercise_exists(exercise):
+            existing_exercises = self.db.get_exercises()
+            messagebox.showwarning("Error",
+                                f"This exercise does not exist. Available exercises in the database are: {', '.join(existing_exercises)}")
+            return
+
+        # Validate time format
+        if not self.time_format(duration):  # Ensure this method validates the time correctly
             messagebox.showwarning("Error", "Invalid time format. Please enter the format HH:MM:SS.")
             return
 
-        # Send data to the database #TODO check this
-        database.update_game_results(pseudo, exercise, time, nbok, nbtrials)
-        self.refresh_treeview()
+        # Convert nbok and nbtrials to integers
+        try:
+            nbok = int(nbok)
+            nbtrials = int(nbtrials)
+        except ValueError:
+            messagebox.showwarning("Error", "NB OK and NB Trials must be integers.")
+            return
 
-        # Display a success message
-        messagebox.showinfo("Success", "Data added successfully!")
+        # Send data to the database
+        result = self.db.add_game_result(pseudo, exercise, duration, nbok, nbtrials)  # Ensure the correct order here
+        if result:
+            messagebox.showinfo("Success", "Result added successfully.")
+        else:
+            messagebox.showerror("Error", "Failed to add the result.")
 
-        # Close the add result window
-        self.add_window.destroy()    
+        self.refresh_treeview()  # Refresh the view to show the new result
+
+     
+    # def save_results(self):
+    #     pseudo = self.pseudo_entry.get()
+    #     exercise = self.exercise_entry.get()
+    #     time = self.time_entry.get()
+    #     nbok = self.nbok_entry.get()
+    #     nbtrials = self.nbtrial_entry.get()
+
+    #     # Verify if the exercise exists
+    #     if not self.check_exercise_exists(exercise):
+    #         existing_exercises = self.db.get_exercices()
+    #         messagebox.showwarning("Error",
+    #                                f"This exercise does not exist. Available exercises in the database are: {', '.join(existing_exercises)}")
+    #         return
+
+    #     # Verify the time format
+    #     if not self.time_format(time):
+    #         messagebox.showwarning("Error", "Invalid time format. Please enter the format HH:MM:SS.")
+    #         return
+
+    #     # Send data to the database #TODO check this
+    #     self.db.update_game_results(pseudo, exercise, time, nbok, nbtrials)
+    #     self.refresh_treeview()
+
+    #     # Display a success message
+    #     messagebox.showinfo("Success", "Data added successfully!")
+
+    #     # Close the add result window
+    #     self.add_window.destroy()    
         
     def check_exercise_exists(self, exercise):
         """
