@@ -209,6 +209,37 @@ class Database:
         """
         cursor.execute(insert_query, (user_id, exercise, date_hour, duration, nbtrials, nbok))
         print(Fore.GREEN + "New result added successfully.")
+    
+    @with_connection
+    def add_game_result(self, cursor, pseudo, exercise, duration, nbtrials, nb_success):
+        # Convert pseudo to user_id
+        user_id_query = "SELECT id FROM users WHERE pseudo = %s"
+        cursor.execute(user_id_query, (pseudo,))
+        user_id_result = cursor.fetchone()
+        if user_id_result is None:
+            print(Fore.RED + "User not found")
+            return False
+        user_id = user_id_result[0]
+
+        # Insert data into results table
+        insert_query = '''
+        INSERT INTO results (user_id, exercise, date_hour, duration, nbok, nbtrials)
+        VALUES (%s, %s, NOW(), %s, %s, %s)
+        '''
+        values = (user_id, exercise, duration, nbtrials, nb_success)
+        try:
+            cursor.execute(insert_query, values)
+            print(Fore.GREEN + "Game result added successfully.")
+            return True
+        except mysql.connector.Error as error:
+            print(Fore.RED + "Error adding game result: ", error)
+            return False
+
+
+
+
+
+
 
 
     @with_connection
@@ -232,9 +263,12 @@ class Database:
         update_query = update_query.rstrip(', ')
         update_query += " WHERE id = %s"
         parameters.append(result_id)
-        
-        cursor.execute(update_query, tuple(parameters))
-        print(Fore.GREEN + "Result updated successfully.")
+
+        try:
+            cursor.execute(update_query, tuple(parameters))
+            print(Fore.GREEN + "Result updated successfully.")
+        except mysql.connector.Error as error:
+            print(Fore.RED + "Error updating results: ", error)
 
     @with_connection
     def delete_game_results(self, cursor, user_id, result_id):
@@ -274,13 +308,24 @@ class Database:
     """ LOGIN """
     
     @with_connection
-    def is_user_exist(self, cursor, pseudo):
-        """Check if a user already exists in the database."""
-        check_user_query = "SELECT 1 FROM users WHERE pseudo = %s"
-        cursor.execute(check_user_query, (pseudo,))
-        return cursor.fetchone() is not None   
+    def is_user_exist(self, pseudo):
+        try:
+            check_user_query = "SELECT 1 FROM users WHERE pseudo = %s"
+            self.cursor.execute(check_user_query, (pseudo,))
+            return self.cursor.fetchone() is not None
+        except mysql.connector.Error as error:
+            print(Fore.RED + f"Error checking user existence: {error}")
+        return False
     
-
+    def is_user_exist(self, cursor, username):
+        try:
+            check_user_query = "SELECT COUNT(*) FROM users WHERE pseudo = %s"
+            cursor.execute(check_user_query, (username,))
+            result = cursor.fetchone()
+            return result[0] > 0
+        except mysql.connector.Error as error:
+            print(Fore.RED + f"Error checking user existence: {error}")
+            return False
 
     @with_connection
     def login_user(self, cursor, pseudo, password):
@@ -315,15 +360,15 @@ class Database:
     @with_connection
     def register_user(self, cursor, pseudo, password, role_id):
         try:
-            # Check if user already exists (Efficient existence check)
-            if self.is_user_exist(pseudo):
+            # Check if user already exists
+            if self.is_user_exist(cursor, pseudo):
                 print(Fore.RED + "Username already taken.")
                 return False
 
-            # Hash the password (Secure password handling)
+            # Hash the password
             hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
 
-            # Insert new user (Database insertion)
+            # Insert new user into the users table
             insert_user_query = """
                 INSERT INTO users (pseudo, password, role_id) VALUES (%s, %s, %s)
             """
@@ -338,26 +383,36 @@ class Database:
     
     
     
+
     @with_connection
     def continue_as_guest(self, cursor):
         try:
-            # Generate a unique guest username with a hash-like style
-            random_str = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
-            guest_username = f"guest_{hashlib.md5(random_str.encode()).hexdigest()[:10]}"
+            while True:
+                # Generate a random string and create an MD5 hash from it
+                random_str = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+                md5_hash = hashlib.md5(random_str.encode('utf-8')).hexdigest()
+                guest_username = f"guest_{md5_hash}"
+
+                if not self.is_user_exist(cursor, guest_username):
+                    break
 
             # Generate a random password
             guest_password = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
 
-            # Create guest account with a default guest role (assuming role_id for guest is 3)
-            if self.register_user(cursor, guest_username, guest_password, role_id=3):
-                print(Fore.GREEN + f"Guest account created. Username: {guest_username}, Password: {guest_password}")
-                return guest_username, guest_password
-            else:
-                print(Fore.RED + "Failed to create guest account.")
-                return None, None
+            # Hash the password
+            hashed_password = bcrypt.hashpw(guest_password.encode('utf-8'), bcrypt.gensalt())
+
+            # Insert new guest into the users table with guest role_id (assuming it's 3)
+            insert_guest_query = """
+                INSERT INTO users (pseudo, password, role_id) VALUES (%s, %s, 3)
+            """
+            cursor.execute(insert_guest_query, (guest_username, hashed_password))
+
+            print(Fore.GREEN + f"Guest account created. Username: {guest_username}")
+            return guest_username, guest_password
 
         except mysql.connector.Error as error:
-            print(Fore.RED + f"Error in guest account creation: {error}")
+            print(Fore.RED + f"Error in creating guest account: {error}")
             return None, None
 
 
