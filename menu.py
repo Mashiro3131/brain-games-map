@@ -9,9 +9,17 @@ import matplotlib.pyplot as plt
 import geo01, info02, info05
 from display_statistics import Statistics
 from database import Database
+from login import SessionState
+import login
+
+
 
 # Variables
 db = Database(host='127.0.0.1', port='3306', user='root', password='root', database='brain_games_db')
+
+session = SessionState()
+
+
 
 assets_folder_home = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "home")
 assets_folder_sidebar_icons = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "sidebar")
@@ -104,10 +112,10 @@ def select_frame_by_name(frame_name):
         "geo01": (game_geo01_frame, "1200x645"),
         "info02": (game_info02_frame, "1200x645"),
         "info05": (game_info05_frame, "1200x645"),
-        "statistics": (statistics_frame, "856x645"),
+        "statistics": (statistics_frame, "1400x650"),
         "users": (users_frame, "856x645"),
         "settings": (settings_frame, "856x645"),
-        "account": (account_frame, "856x645")
+        "account": (account_frame, "1020x645")
     }
 
     for name, (frame, size) in frames.items():
@@ -185,6 +193,10 @@ sidebar_frame_settings_button.pack(anchor="center", ipady=5, pady=(16, 0))
 # Account Button in Sidebar
 def account_button_event():
     select_frame_by_name("account")
+    for widget in account_frame.winfo_children():
+        widget.destroy()
+    login_instance = login.Login(account_frame)
+    login_instance.pack(fill="both", expand=True)
     
 sidebar_frame_account_button = CTkButton(master=sidebar_frame, image=person_img, text="Account", fg_color="transparent", text_color=("white","white"), font=braingames_sidebar_button_font, hover_color="#000000", anchor="w", command=account_button_event)
 sidebar_frame_account_button.pack(anchor="center", ipady=5, pady=(160, 0))
@@ -270,11 +282,12 @@ home_frame_games.pack(pady=(5,0), padx=(0, 0), anchor="center")
 
 # Home Frame Games Buttons
 # Geo01 Game
+
 def geo01_button_event():
     select_frame_by_name("geo01")
     for widget in game_geo01_frame.winfo_children():
         widget.destroy()
-    geo_game_instance = geo01.GeoGame(game_geo01_frame)
+    geo_game_instance = geo01.GeoGame(game_geo01_frame)  # Pass the session instance here
     geo_game_instance.pack(fill="both", expand=True)
     
 home_frame_game_geo01_button = CTkButton(master=home_frame_games, text="", fg_color="transparent", image=geo01_img, hover_color="#393939", corner_radius=7, command=geo01_button_event)
@@ -322,18 +335,32 @@ game_info05_frame.pack_propagate(0)
 # Create the Users Frame
 
 users_frame = CTkFrame(master=app, fg_color="transparent", width=680, height=650, corner_radius=0)
+users_frame.pack_propagate(0)
 
 # Create the Settings Frame
 
 settings_frame = CTkFrame(master=app, fg_color="transparent", width=680, height=650, corner_radius=0)
+settings_frame.pack_propagate(0)
 
 # Create the Account Frame
 
+# def account_button_event():
+#     select_frame_by_name("account")
+#     for widget in account_frame.winfo_children():
+#         widget.destroy()
+#     login_instance = login.Login(account_frame)
+#     login_instance.pack(fill="both", expand=True)
+    
+
+
 account_frame = CTkFrame(master=app, fg_color="transparent", width=680, height=650, corner_radius=0)
+account_frame.pack_propagate(0)
+
+
+""" Statistics Frame """
 
 
 
-# Check if the user is a teacher or admin, if yes, display the users and settings buttons in the sidebar
 
 
 # Check if user is logged in, if not, display the login page
@@ -349,9 +376,10 @@ account_frame = CTkFrame(master=app, fg_color="transparent", width=680, height=6
 #     # TODO Display the login page
 #     pass
 
-""" Select Home Frame by default """
+
+
+# It will display the home page by default
 select_frame_by_name("home")
 
-
-""" Launch App"""
+# Run the app
 app.mainloop()
