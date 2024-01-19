@@ -6,7 +6,25 @@ from database import Database
 import colorama
 from colorama import Fore
 colorama.init(autoreset=True)
+import uuid
 
+class SessionState:
+    def __init__(self):
+        self.user_token = None
+
+    def login(self, user_token):
+        self.user_token = user_token
+
+    def logout(self):
+        self.user_token = None
+
+    def is_logged_in(self):
+        return self.user_token is not None
+
+    def get_user_token(self):
+        return self.user_token
+
+    
 
 class Login(CTkFrame):
     def __init__(self, parent, *args, **kwargs):
@@ -18,14 +36,16 @@ class Login(CTkFrame):
         self.setup_assets()
         self.create_left_side_frame()
         self.create_login_frame()
+        self.session = SessionState()
         
         self.db = Database(host='127.0.0.1', port='3306', user='root', password='root', database='brain_games_db')
 
 
     def setup_window(self):
-        self.parent.title("LogIn")
-        self.parent.geometry("856x645")
-        self.parent.resizable(False, False)
+        # self.parent.title("LogIn")
+        # self.parent.geometry("856x645")
+        # self.parent.resizable(False, False)
+        pass
 
 
     def setup_assets(self):
@@ -135,14 +155,20 @@ class Login(CTkFrame):
     """ Login Functions """
         
     def login_as_user(self):
-        username = self.username_entry.get()
-        password = self.password_entry.get()
+            username = self.username_entry.get()
+            password = self.password_entry.get()
 
-        if self.db.login_user(username, password):  # Assuming login_user returns True on successful login
-            print(f"User {username} logged in successfully")
-            # self.session.login(username)
-        else:
-            print("Login failed. Incorrect username or password.")
+            # Check if login credentials are correct
+            if self.db.login_user(username, password):
+                user_token = str(uuid.uuid4())  # Generate a unique session token
+                self.session.login(user_token)  # Log the user in using the session manager
+                print(f"User {username} logged in successfully. Token: {user_token}")
+
+                # Here you can add additional code to handle what happens after a successful login.
+                # For example, you could switch to another frame or update the UI to reflect the user's login status.
+
+            else:
+                print("Login failed. Incorrect username or password.")
 
 
 
@@ -235,7 +261,7 @@ class Login(CTkFrame):
         self.toggle_password_button.configure(width=15, height=15)
 
         self.password_showing = False
-
+    
 
 
     def setup_register_button_frame(self):
