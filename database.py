@@ -11,6 +11,63 @@ import hashlib
 
 colorama.init(autoreset=True)
 
+""" Database structure (mysql)
+
+--
+-- Structure of database creatoion and usage `braingames_db`
+--
+
+CREATE DATABASE IF NOT EXISTS `braingames_db` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+USE `braingames_db`;
+
+--
+-- Structure of table `results`
+--
+
+CREATE TABLE IF NOT EXISTS `results` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `user_id` INT(11) NOT NULL,
+  `exercise` VARCHAR(50) NOT NULL,
+  `date_hour` DATETIME NOT NULL,
+  `duration` TIME NOT NULL,
+  `nbtrials` INT(11) NOT NULL,
+  `nbok` INT(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+);
+
+
+
+--
+-- Structure of table `roles`
+--
+
+CREATE TABLE IF NOT EXISTS `roles` (
+  `id` INT(11) PRIMARY KEY NOT NULL,
+  `name` VARCHAR(50) NOT NULL
+);
+
+
+
+--
+-- Structure of table `users`
+--
+
+CREATE TABLE IF NOT EXISTS `users` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `pseudo` VARCHAR(50) NOT NULL,
+  `password` VARCHAR(255) NOT NULL,
+  `role_id` INT(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`)
+);
+
+
+
+"""
+
+
 
 class Database:
     _instance = None
@@ -104,6 +161,25 @@ class Database:
             print(Fore.RED + f"Error fetching results: {error}")
             return [], 0
       
+    @with_connection
+    def get_exercices(self, cursor):
+        try:
+            query = "SELECT DISTINCT exercise FROM results"
+            cursor.execute(query)
+            exercises = cursor.fetchall()
+
+            exercise_names = [exercise[0] for exercise in exercises]
+            return exercise_names
+        except mysql.connector.Error as error:
+            print(Fore.RED + f"Error fetching exercises: {error}")
+            return []
+    
+    
+      
+      
+      
+      
+      
     # This will be used in the home menu page to display the statistics of the user    
     @with_connection 
     def get_statistics_for_user(self, pseudo=None, exercise=None, start_date=None, end_date=None, page=1, page_size=20):
@@ -119,7 +195,7 @@ class Database:
         return result and result[0] == required_role
 
 
-    """ CRUD for teachers """
+    """ Display Statistics - CRUD for teachers """
 
     @with_connection
     def create_new_result(self, cursor, user_id, exercise, date_hour, duration, nbtrials, nbok):
@@ -134,8 +210,9 @@ class Database:
         cursor.execute(insert_query, (user_id, exercise, date_hour, duration, nbtrials, nbok))
         print(Fore.GREEN + "New result added successfully.")
 
+
     @with_connection
-    def update_result(self, cursor, user_id, result_id, new_duration=None, new_nbtrials=None, new_nbok=None):
+    def update_game_results(self, cursor, user_id, result_id, new_duration=None, new_nbtrials=None, new_nbok=None):
         if not self.check_user_role(cursor, user_id, 2):
             print(Fore.RED + "Unauthorized: Only teachers can update results.")
             return False
@@ -160,7 +237,7 @@ class Database:
         print(Fore.GREEN + "Result updated successfully.")
 
     @with_connection
-    def delete_result(self, cursor, user_id, result_id):
+    def delete_game_results(self, cursor, user_id, result_id):
         if not self.check_user_role(cursor, user_id, 2):
             print(Fore.RED + "Unauthorized: Only teachers can delete results.")
             return False
@@ -307,5 +384,4 @@ class Database:
 
 
 if __name__ == "__main__":
-    
     Database(host='127.0.0.1', port='3306', user='root', password='root', database='brain_games_db')
