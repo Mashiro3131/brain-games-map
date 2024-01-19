@@ -6,10 +6,20 @@ import customtkinter as ctk
 from CTkMessagebox import CTkMessagebox
 from customtkinter import *
 import database
-from database import Database
+from database import fetch_game_statistics, retrieve_exercise_catalog, delete_game_results
 import matplotlib.pyplot as plt
+from database import Database
+
+"""
+
+- [ ] Ajouter le tableau des résultats dans la frame statistiques
+- [ ] Changer le treeview à CTkTable, faire en sorte que les colonnes se redimensionnent automatiquement et qu'on puisse faire la meme chose que avec le treeview
+- [ ] Ajouter la fonctionnaliter de filtrer en asc et desc en cliquant sur les entêtes des colonnes
+- [ ] Ajouter un autre sidebar sur la droite pour le CRUD
+- [ ] Ajouter l'option faire un crud sur les résultats depuis la sidebar
 
 
+"""
 
 class Statistics(CTkFrame):
     def __init__(self, parent, *args, **kwargs):
@@ -21,10 +31,11 @@ class Statistics(CTkFrame):
         self.rows_per_page = 20
         self.loaded_data = False  # To track if data has been loaded
         self.parent = parent
-        self.parent.geometry("900x650")
+        
+        # self.parent.geometry("1200x650")
         # self.parent.title("Statistics")
         self.last_filters = {"pseudo": "", "exercise": "", "start_date": "", "end_date": ""}
-
+        
         self.db = Database(host='127.0.0.1', port='3306', user='root', password='root', database='brain_games_db')
 
         self.setup_widgets()
@@ -44,13 +55,13 @@ class Statistics(CTkFrame):
         # Pseudo filter
         self.pseudo_label = ctk.CTkLabel(self.filter_frame, text="Pseudo:")
         self.pseudo_label.grid(row=0, column=0, padx=15, pady=8)
-        self.pseudo_entry = ctk.CTkEntry(self.filter_frame, placeholder_text="Username")
+        self.pseudo_entry = ctk.CTkEntry(self.filter_frame, placeholder_text="Your Username")
         self.pseudo_entry.grid(row=0, column=1, padx=5, pady=8)
 
         # Exercise filter
         self.exercise_label = ctk.CTkLabel(self.filter_frame, text="Exercise:")
         self.exercise_label.grid(row=0, column=2, padx=5, pady=8)
-        self.exercise_entry = ctk.CTkEntry(self.filter_frame, placeholder_text="Exercise Name")
+        self.exercise_entry = ctk.CTkEntry(self.filter_frame, placeholder_text="the exercise")
         self.exercise_entry.grid(row=0, column=3, padx=5, pady=8)
 
         # Start date filter
@@ -156,9 +167,10 @@ class Statistics(CTkFrame):
 
         """ CRUD Sidebar Frame """
 
-        crud_sidebar_frame = ctk.CTkFrame(self, fg_color="#2A8C55",  width=176, height=650, corner_radius=0)
-        crud_sidebar_frame.pack_propagate(0)
-        crud_sidebar_frame.pack(side="right", anchor="w", fill="y")
+        # CRUD Sidebar Frame
+        self.crud_sidebar_frame = CTkFrame(self, fg_color="#2A8C55",  width=176, height=650, corner_radius=0)
+        self.crud_sidebar_frame.pack_propagate(0)
+        self.crud_sidebar_frame.pack(side="right", anchor="w", fill="y")
         
         
         # CRUD Buttons 
@@ -173,20 +185,16 @@ class Statistics(CTkFrame):
         De créer un résultat à partir de rien 
         """
         
-        create_button = ctk.CTkButton(crud_sidebar_frame, text="Add", command=self.add_results)
-        create_button.pack(side="top", padx=10, pady=10)
+        self.create_button = ctk.CTkButton(self.crud_sidebar_frame, text="Add", command=self.add_results)
+        self.create_button.pack(side="top", padx=10, pady=10)
         
         # UPDATE Button
-        update_button = ctk.CTkButton(crud_sidebar_frame, text="Modify", command=self.modify_results)
-        update_button.pack(side="top", padx=10, pady=10)
+        self.update_button = ctk.CTkButton(self.crud_sidebar_frame, text="Modify", command=self.modify_results)
+        self.update_button.pack(side="top", padx=10, pady=10)
         
         # DELETE Button
-        delete_button = ctk.CTkButton(crud_sidebar_frame, text="Delete", command=self.delete_results)
-        delete_button.pack(side="top", padx=10, pady=10)
-        
-        
-
-
+        self.delete_button = ctk.CTkButton(self.crud_sidebar_frame, text="Delete", command=self.delete_results)
+        self.delete_button.pack(side="top", padx=10, pady=10)
 
         # Displays the results instantly
         self.view_results()
@@ -263,7 +271,7 @@ class Statistics(CTkFrame):
         self.last_filters.update({"pseudo": pseudo, "exercise": exercise, "start_date": start_date, "end_date": end_date})
 
         # Fetch results from the database
-        results, _ = self.db.fetch_game_statistics(pseudo=pseudo, exercise=exercise, start_date=start_date,
+        results, _ = database.fetch_game_statistics(pseudo=pseudo, exercise=exercise, start_date=start_date,
                                                     end_date=end_date)
 
         # Store the filtered data and reset the current page
@@ -420,7 +428,7 @@ class Statistics(CTkFrame):
         nbtrials = current_values[5]
         
         # Delete the result from the database
-        database.Database (pseudo, exercise, date_hour, duration, nbok, nbtrials)
+        database.delete_game_results(pseudo, exercise, date_hour, duration, nbok, nbtrials)
         self.tree.delete(selected_item)
         
     def refresh_treeview(self):
@@ -447,16 +455,8 @@ class Statistics(CTkFrame):
             return 0
 
     def convert_time_to_seconds(self, time_str):
-        """ Convert a given time string (HH:MM:SS) or datetime string (YYYY-MM-DD HH:MM:SS) to seconds. """
-        if '-' in time_str:  # Indicates a datetime string
-            date_str, time_str = time_str.split(' ')
-        time_parts = time_str.split(':')
-        
-        # Ensure time_parts has three elements (hours, minutes, seconds)
-        while len(time_parts) < 3:
-            time_parts.append('0')  # Append '0' if any component (minutes/seconds) is missing
-
-        hours, minutes, seconds = map(int, time_parts)
+        """ Convert a given time string (HH:MM:SS) to seconds. """
+        hours, minutes, seconds = map(int, time_str.split(':'))
         return hours * 3600 + minutes * 60 + seconds
 
     def colorize_percentage(self, percentage):
@@ -514,28 +514,28 @@ class Statistics(CTkFrame):
     def save_results(self):
         pseudo = self.pseudo_entry.get()
         exercise = self.exercise_entry.get()
-        time = self.time_entry.get()
+        temps = self.time_entry.get()
         nbok = self.nbok_entry.get()
         nbtrials = self.nbtrial_entry.get()
 
         # Verify if the exercise exists
         if not self.check_exercise_exists(exercise):
-            existing_exercises = self.db.get_exercices()
-            messagebox.showwarning("Error",
-                                   f"This exercise does not exist. Available exercises in the database are: {', '.join(existing_exercises)}")
+            existing_exercises = retrieve_exercise_catalog()
+            messagebox.showwarning("Erreur",
+                                   f"Cet exercise n'existe pas. Les exercices disponibles dans la BD sont: {', '.join(existing_exercises)}")
             return
 
         # Verify the time format
-        if not self.time_format(time):
-            messagebox.showwarning("Error", "Invalid time format. Please enter the format HH:MM:SS.")
+        if not self.time_format(temps):
+            messagebox.showwarning("Erreur", "Format de temps invalide. Veuillez entrer le format HH:MM:SS.")
             return
 
         # Send data to the database #TODO check this
-        database.update_game_results(pseudo, exercise, time, nbok, nbtrials)
+        database.update_game_results(pseudo, exercise, temps, nbok, nbtrials)
         self.refresh_treeview()
 
         # Display a success message
-        messagebox.showinfo("Success", "Data added successfully!")
+        messagebox.showinfo("Succès", "Données ajoutées avec succès !")
 
         # Close the add result window
         self.add_window.destroy()    
@@ -544,7 +544,7 @@ class Statistics(CTkFrame):
         """
         Checks if a given exercise exists in the database.
         """
-        results = self.db.fetch_game_statistics(exercise=exercise)  # Adapt to actual database call
+        results = fetch_game_statistics(exercise=exercise)  # Adapt to actual database call
         return len(results) > 0
 
     def time_format(self, temps_str):
@@ -562,5 +562,6 @@ if __name__ == "__main__":
     window = ctk.CTk()  # or ctk.CTk() if you are using customtkinter for the main window
     window.title("Statistics")
     app = Statistics(window)
+    app.theme = "dark"
     app.pack(expand=True, fill="both")
     window.mainloop()

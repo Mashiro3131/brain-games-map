@@ -8,31 +8,10 @@ from colorama import Fore
 colorama.init(autoreset=True)
 
 
-
-class Session:
-    def __init__(self):
-        self.username = None
-        self.is_authenticated = False
-
-    def login(self, username):
-        self.username = username
-        self.is_authenticated = True
-
-    def logout(self):
-        self.username = None
-        self.is_authenticated = False
-
-    def is_logged_in(self):
-        return self.is_authenticated
-    
-    def get_username(self):
-        return self.username
-
-
 class Login(CTkFrame):
     def __init__(self, parent, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
-        self.session = Session
+        # self.session = Session
         self.parent = parent
         self.parent.theme = "dark"
         self.setup_window()
@@ -161,7 +140,7 @@ class Login(CTkFrame):
 
         if self.db.login_user(username, password):  # Assuming login_user returns True on successful login
             print(f"User {username} logged in successfully")
-            self.session.login(username)
+            # self.session.login(username)
         else:
             print("Login failed. Incorrect username or password.")
 
@@ -175,8 +154,6 @@ class Login(CTkFrame):
 
         if self.db.register_user(username, password, role_id=1):  # role_id=1 for regular users (students)
             print(f"User {username} registered successfully")
-            self.session.login(username)
-            # Proceed with post-registration actions
         else:
             print("Registration failed")
 
@@ -186,7 +163,6 @@ class Login(CTkFrame):
         username, password = self.db.continue_as_guest()  # Assuming this method returns guest credentials
         if username and password:
             print(f"Logged in as guest: {username}")
-            # Proceed with guest login actions
         else:
             print("Failed to continue as guest.")
 
